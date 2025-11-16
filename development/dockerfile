@@ -2,33 +2,25 @@ FROM apache/flink:1.18.1-scala_2.12-java11
 
 ENV FLINK_LIB_DIR=/opt/flink/lib
 
-# Append jars → COPY จะไม่ลบไฟล์เดิมของ Flink
-# COPY flink/connectors/*.jar ${FLINK_LIB_DIR}/
 
 # Install Python for PyFlink
 RUN apt-get update && \
     apt-get install -y python3 python3-pip && \
     ln -s /usr/bin/python3 /usr/bin/python
-# (Optional) Add Python libs if needed
 
 COPY python-lib/requirements.txt .
 RUN pip3 install -r requirements.txt
 
-RUN apt-get install -y net-tools
 
-ARG FLINK_CONF_SRC
-
-# ถ้า FLINK_CONF_SRC ถูกกำหนด → COPY
+# COPY connectors
 COPY flink/connectors/*.jar ${FLINK_LIB_DIR}/
 
-COPY flink/ /opt/flink/custom-config/
+# COPY custom flink-conf.yaml มาลงใน image
+COPY flink/flink-conf.yaml /opt/flink/custom-config/flink-conf.yaml
 
-RUN if [ -n "$FLINK_CONF_SRC" ]; then \
-    echo "Using custom flink-conf from $FLINK_CONF_SRC"; \
-    cp "/opt/flink/custom-config/$FLINK_CONF_SRC" /opt/flink/conf/flink-conf.yaml; \
-    else \
-    echo "No custom flink-conf supplied. Using default."; \
-    fi
+# Replace default config (เรียบง่ายสุด)
+RUN cp /opt/flink/custom-config/flink-conf.yaml /opt/flink/conf/flink-conf.yaml
+
 
 # Default command
 CMD ["bash"]

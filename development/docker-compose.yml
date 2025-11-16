@@ -73,46 +73,46 @@ services:
       - kafka3
 
   jobmanager:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        FLINK_CONF_SRC: jobmanager/flink-conf.yaml
-    image: custom-flink:jobmanager
+    build: .
+    image: custom-flink:latest
     container_name: jobmanager
     command: jobmanager
+    hostname: jobmanager
     ports:
+      - "6123:6123"
       - "8081:8081"  
       - "9250:9250"
     volumes:
       - ../flink-app:/opt/flink/app 
-
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
     depends_on: [kafka1, kafka2, kafka3]
 
   # Flink TaskManager
   taskmanager:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        FLINK_CONF_SRC: taskmanager/flink-conf.yaml
-    image: custom-flink:taskmanager
+    build: .
+    image: custom-flink:latest
     container_name: taskmanager
     command: taskmanager
+    hostname: taskmanager
+    environment:
+    - JOB_MANAGER_RPC_ADDRESS=jobmanager
     ports:
-      - "8081:8081"  
-      - "9251:9251"
-    depends_on: [jobmanager]
+      - "9251:9250"
+    depends_on:
+      jobmanager:
+        condition: service_healthy
     volumes:
       - ./flink-app:/opt/flink/app
+    
+
 
   client:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        FLINK_CONF_SRC: jobmanager/flink-conf.yaml
-    image: custom-flink:jobmanager
+    build: .
+    image: custom-flink:latest
     container_name: client
     depends_on:
       - jobmanager

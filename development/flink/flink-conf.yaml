@@ -1,14 +1,14 @@
-# # --- RPC / Cluster ---
-# jobmanager.rpc.address: jobmanager
-# jobmanager.web.port: 8081
+# --- RPC / Cluster ---
+jobmanager.rpc.address: jobmanager
+jobmanager.web.port: 8081
 
 # # --- Memory ---
 # jobmanager.memory.process.size: 2048m
 
-# # --- JMX Metrics ---
+# --- JMX Metrics ---
 metrics.reporters: prom
-metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
-metrics.reporter.prom.port: "9250"
+metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+metrics.reporter.prom.port: 9250
 
 # blob.server.port: 6124
 # query.server.port: 6125
@@ -47,7 +47,7 @@ metrics.reporter.prom.port: "9250"
 # The external address of the host on which the JobManager runs and can be
 # reached by the TaskManagers and any clients which want to connect. This setting
 # is only used in Standalone mode and may be overwritten on the JobManager side
-# by specifying the --host <hostname> parameter of the bin/jobmanager.sh executable.
+# by specifying the --host <jobmanager.rpc.address> parameter of the bin/jobmanager.sh executable.
 # In high availability mode, if you use the bin/start-cluster.sh script and setup
 # the conf/masters file, this will be taken care of automatically. Yarn
 # automatically configure the host name based on the hostname of the node where the
@@ -202,7 +202,7 @@ jobmanager.execution.failover-strategy: region
 # The port to which the REST client connects to. If rest.bind-port has
 # not been specified, then the server will bind to this port as well.
 #
-rest.port: 8081
+# rest.port: 8081
 
 # The address to which the REST client will connect to
 #
