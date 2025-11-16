@@ -72,39 +72,47 @@ services:
       - kafka2
       - kafka3
 
-  # Flink JobManager
   jobmanager:
-    image: apache/flink:1.18.1-scala_2.12-java11
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        FLINK_CONF_SRC: jobmanager/flink-conf.yaml
+    image: custom-flink:jobmanager
     container_name: jobmanager
-    ports:
-      - "8081:8081"   # Flink Web UI
-    environment:
-      - |
-        FLINK_PROPERTIES=
-        jobmanager.rpc.address: jobmanager
     command: jobmanager
+    ports:
+      - "8081:8081"  
+      - "9250:9250"
     volumes:
-      - ./connectors:/opt/flink/usrlib           # mount Kafka connector jar
-      - ./flink-app:/opt/flink/app            # mount PyFlink app
+      - ../flink-app:/opt/flink/app 
+
     depends_on: [kafka1, kafka2, kafka3]
 
   # Flink TaskManager
   taskmanager:
-    image: apache/flink:1.18.1-scala_2.12-java11
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        FLINK_CONF_SRC: taskmanager/flink-conf.yaml
+    image: custom-flink:taskmanager
     container_name: taskmanager
-    environment:
-      - |
-        FLINK_PROPERTIES=
-        jobmanager.rpc.address: jobmanager
-        taskmanager.numberOfTaskSlots: 2
     command: taskmanager
+    ports:
+      - "8081:8081"  
+      - "9251:9251"
     depends_on: [jobmanager]
     volumes:
-      - ./connectors:/opt/flink/usrlib
       - ./flink-app:/opt/flink/app
 
   client:
-    image: apache/flink:1.18.1-scala_2.12-java11
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        FLINK_CONF_SRC: jobmanager/flink-conf.yaml
+    image: custom-flink:jobmanager
     container_name: client
     depends_on:
       - jobmanager
@@ -112,26 +120,24 @@ services:
     environment:
       - PYTHONPATH=/opt/flink/opt/python/pyflink.zip:/opt/flink/opt/python/py4j-0.10.9.7-src.zip:/opt/flink/opt/python/cloudpickle-2.2.0-src.zip:${PYTHONPATH}
     command: 
-      - |
-        apt-get update && \
-        apt-get install -y python3 python3-pip && \
-        ln -s /usr/bin/python3 /usr/bin/python || true && \
-        echo '✅ PyFlink is using /opt/flink/opt/python (no pip install needed)' && \
-        tail -f /dev/null
+      - tail -f /dev/null
     volumes:
-      - ./connectors:/opt/flink/usrlib
       - ./flink-app:/opt/flink/app
 
   init-topics:
     image: confluentinc/cp-kafka:7.7.0
     container_name: init-topics
     depends_on:
-      - kafka-ui
+      - kafka1
+      - kafka2
+      - kafka3
     entrypoint: ["/bin/bash", "-c"]
     command: >
       "
       echo '⏳ Waiting for Kafka to be ready...' &&
       cub kafka-ready -b kafka1:19092 1 20 &&
+      cub kafka-ready -b kafka2:19093 1 20 &&
+      cub kafka-ready -b kafka3:19094 1 20 &&
       echo '✅ Kafka ready. Creating topics...' &&
       kafka-topics --create --if-not-exists --bootstrap-server kafka1:19092 --replication-factor 3 --partitions 3 --topic input-topic &&
       kafka-topics --create --if-not-exists --bootstrap-server kafka1:19092 --replication-factor 3 --partitions 3 --topic output-topic &&
@@ -139,3 +145,21 @@ services:
       echo '🎉 Topics created successfully!' &&
       sleep 2
       "
+
+  prometheus:
+    image: prom/prometheus:v3.7.0
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:12.4.0-19344475766
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
