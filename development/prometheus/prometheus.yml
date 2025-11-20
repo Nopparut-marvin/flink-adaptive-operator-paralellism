@@ -5,4 +5,4 @@ scrape_configs:
   - job_name: "flink"
     metrics_path: "/metrics"
     static_configs:
-      - targets: ["jobmanager:9250", "taskmanager:9251"]
+      - targets: ["jobmanager:9250", "taskmanager:9250"]
